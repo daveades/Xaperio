@@ -17,6 +17,7 @@ dependencies = [
     "pymupdf>=1.25",
     "pypdf>=6",
     "sentence-transformers>=5",
+    "transformers>=4.41,<6",
     "gunicorn>=23",
 ]
 
