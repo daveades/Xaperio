@@ -5,9 +5,15 @@ import xml.etree.ElementTree as ET
 import zipfile
 from html.parser import HTMLParser
 
+import pymupdf
+from PIL import Image, ImageOps
+
 SUPPORTED_FORMATS = ("epub", "pdf", "html")
 MAX_BOOK_SIZE = 100 * 1024 * 1024  # 100 MB
 MAX_COVER_SIZE = 10 * 1024 * 1024  # 10 MB
+COVER_WIDTH = 480
+COVER_HEIGHT = 720
+MAX_HTML_COVER_BYTES = 1024 * 1024
 
 IMAGE_SIGNATURES = {
     b"\xff\xd8\xff": ".jpg",
@@ -251,6 +257,49 @@ def extract_epub_metadata(data):
     return meta
 
 
+def _jpeg_cover(image):
+    image = ImageOps.exif_transpose(image)
+    image.thumbnail((COVER_WIDTH, COVER_HEIGHT), Image.Resampling.LANCZOS)
+    rgba = image.convert("RGBA")
+    rgb = Image.new("RGB", rgba.size, "white")
+    rgb.paste(rgba, mask=rgba.getchannel("A"))
+    output = io.BytesIO()
+    rgb.save(output, "JPEG", quality=82, optimize=True, progressive=True)
+    return output.getvalue()
+
+
+def _pdf_cover(data):
+    with pymupdf.open(stream=data, filetype="pdf") as document:
+        if not document.page_count:
+            return None
+        page = document.load_page(0)
+        scale = COVER_WIDTH / max(page.rect.width, 1)
+        pixmap = page.get_pixmap(matrix=pymupdf.Matrix(scale, scale), alpha=False)
+        image = Image.frombytes("RGB", (pixmap.width, pixmap.height), pixmap.samples)
+        return _jpeg_cover(image)
+
+
+def _html_cover(data):
+    html = data[:MAX_HTML_COVER_BYTES].decode("utf-8", errors="replace")
+    output = io.BytesIO()
+    writer = pymupdf.DocumentWriter(output)
+    page_rect = pymupdf.Rect(0, 0, COVER_WIDTH, COVER_HEIGHT)
+    content_rect = pymupdf.Rect(24, 24, COVER_WIDTH - 24, COVER_HEIGHT - 24)
+    device = writer.begin_page(page_rect)
+    story = pymupdf.Story(
+        html=html,
+        user_css="body { margin: 0; font-family: sans-serif; font-size: 14px; } img { max-width: 100%; height: auto; }",
+    )
+    story.place(content_rect)
+    story.draw(device)
+    writer.end_page()
+    writer.close()
+    with pymupdf.open(stream=output.getvalue(), filetype="pdf") as document:
+        pixmap = document.load_page(0).get_pixmap(alpha=False)
+        image = Image.frombytes("RGB", (pixmap.width, pixmap.height), pixmap.samples)
+        return _jpeg_cover(image)
+
+
 def extract_pdf_metadata(data):
     meta = {
         "title": None,
@@ -317,6 +366,13 @@ def extract_pdf_metadata(data):
             except Exception:
                 pass
 
+    try:
+        meta["cover_bytes"] = _pdf_cover(data)
+        if meta["cover_bytes"]:
+            meta["cover_ext"] = ".jpg"
+    except Exception:
+        pass
+
     return meta
 
 
@@ -343,6 +399,12 @@ def extract_html_metadata(data):
             meta["authors"] = parser.authors
         if parser.description:
             meta["description"] = parser.description
+    except Exception:
+        pass
+    try:
+        meta["cover_bytes"] = _html_cover(data)
+        if meta["cover_bytes"]:
+            meta["cover_ext"] = ".jpg"
     except Exception:
         pass
     return meta

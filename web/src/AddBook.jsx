@@ -300,7 +300,7 @@ export default function AddBook({ onClose, onBookAdded }) {
           <label className="field">
             <span>Cover Image (Optional)</span>
             {hasEmbeddedCover && !cover && (
-              <span className="field__hint">✓ Embedded cover detected from book file</span>
+              <span className="field__hint">✓ Cover detected or generated from book file</span>
             )}
             <input
               type="file"

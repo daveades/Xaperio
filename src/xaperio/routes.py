@@ -449,7 +449,6 @@ def add():
         except ValueError as e:
             return {"error": str(e)}, 400
     elif extracted_meta.get("cover_bytes"):
-        # Auto-use embedded cover from EPUB if not provided
         cover_bytes = extracted_meta["cover_bytes"]
         cover_ext = extracted_meta.get("cover_ext") or ".jpg"
 
