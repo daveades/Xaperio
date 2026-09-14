@@ -26,6 +26,8 @@ RERANK_WINDOWS_PER_CHUNK = 8
 RERANK_WINDOW_SENTENCES = 2
 RERANK_WINDOW_OVERLAP = 1
 MIN_RERANK_SCORE = 0.20
+MIN_ANSWER_SCORE = 0.20
+
 
 
 def list_submissions(conn, user_id, is_admin):
@@ -480,7 +482,75 @@ def _rerank_passages(query, results, reranker):
     return selected
 
 
-def search_books(conn, q, query_embedding=None, model_version=None, reranker=None):
+def _answer_excerpt(text, answer_start, answer_end):
+    if len(text) <= SEARCH_EXCERPT_CHARACTERS:
+        return text, answer_start, answer_end
+    answer_length = answer_end - answer_start
+    surrounding = max(0, SEARCH_EXCERPT_CHARACTERS - answer_length - 6)
+    excerpt_start = max(0, answer_start - surrounding // 2)
+    excerpt_end = min(len(text), answer_end + surrounding - (answer_start - excerpt_start))
+    excerpt_start = max(0, excerpt_end - answer_length - surrounding)
+    prefix = "..." if excerpt_start else ""
+    suffix = "..." if excerpt_end < len(text) else ""
+    excerpt = f"{prefix}{text[excerpt_start:excerpt_end]}{suffix}"
+    offset = len(prefix) - excerpt_start
+    return excerpt, answer_start + offset, answer_end + offset
+
+
+def _extract_passage_answers(query, passages, answerer):
+    answers = answerer(query, [passage["content"] for passage in passages])
+    for passage, answer in zip(passages, answers, strict=True):
+        if answer["answer"] and answer["score"] >= MIN_ANSWER_SCORE:
+            passage["answer"] = answer["answer"]
+            passage["answer_score"] = answer["score"]
+            passage["answer_start"] = answer["start"]
+            passage["answer_end"] = answer["end"]
+    passages.sort(
+        key=lambda passage: (
+            "answer" in passage,
+            passage.get("answer_score", 0.0),
+            passage.get("rerank_score", 0.0),
+            passage.get("retrieval_score", 0.0),
+        ),
+        reverse=True,
+    )
+    return passages
+
+
+def _passage_match(passage):
+    match = {
+        "section_title": passage["section_title"],
+        "locator": passage["locator"],
+        "format": passage["format"],
+    }
+    if "answer" not in passage:
+        match["excerpt"] = _excerpt(passage["content"])
+        return match
+    excerpt, answer_start, answer_end = _answer_excerpt(
+        passage["content"],
+        passage["answer_start"],
+        passage["answer_end"],
+    )
+    match.update(
+        {
+            "excerpt": excerpt,
+            "answer": passage["answer"],
+            "answer_score": passage["answer_score"],
+            "answer_start": answer_start,
+            "answer_end": answer_end,
+        }
+    )
+    return match
+
+
+def search_books(
+    conn,
+    q,
+    query_embedding=None,
+    model_version=None,
+    reranker=None,
+    answerer=None,
+):
     query = q.strip()
     if not query:
         return []
@@ -503,6 +573,8 @@ def search_books(conn, q, query_embedding=None, model_version=None, reranker=Non
         _add_section_match(_book_result(results, row), row, "semantic_score")
 
     reranked_passages = _rerank_passages(query, results, reranker) if reranker else None
+    if reranked_passages and answerer:
+        reranked_passages = _extract_passage_answers(query, reranked_passages, answerer)
     passages_by_book = {}
     if reranked_passages is not None:
         for passage in reranked_passages:
@@ -532,12 +604,7 @@ def search_books(conn, q, query_embedding=None, model_version=None, reranker=Non
             )
         )
         result["matches"] = [
-            {
-                "section_title": passage["section_title"],
-                "locator": passage["locator"],
-                "format": passage["format"],
-                "excerpt": _excerpt(passage["content"]),
-            }
+            _passage_match(passage)
             for passage in passages[:SEARCH_SECTION_LIMIT]
         ]
         ranked.append(result)

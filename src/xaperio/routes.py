@@ -102,14 +102,27 @@ def search():
                 query_embedding,
                 embedding_client.MODEL_NAME,
                 embedding_client.rerank,
+                embedding_client.extract_answers,
             )
+        except embedding_client.AnswerClientError:
+            try:
+                return books.search_books(
+                    conn,
+                    query,
+                    query_embedding,
+                    embedding_client.MODEL_NAME,
+                    embedding_client.rerank,
+                )
+            except embedding_client.EmbeddingClientError:
+                pass
         except embedding_client.EmbeddingClientError:
-            return books.search_books(
-                conn,
-                query,
-                query_embedding,
-                embedding_client.MODEL_NAME,
-            )
+            pass
+        return books.search_books(
+            conn,
+            query,
+            query_embedding,
+            embedding_client.MODEL_NAME,
+        )
 
 
 @app.get("/books/<int:book_id>")
