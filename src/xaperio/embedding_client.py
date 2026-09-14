@@ -10,9 +10,15 @@ MAX_BATCH_SIZE = 32
 MAX_RESPONSE_BYTES = 2 * 1024 * 1024
 RERANK_MODEL_NAME = "cross-encoder/ms-marco-MiniLM-L6-v2"
 RERANK_BATCH_SIZE = 16
+QA_MODEL_NAME = "deepset/minilm-uncased-squad2"
+QA_BATCH_SIZE = 8
 
 
 class EmbeddingClientError(RuntimeError):
+    pass
+
+
+class AnswerClientError(RuntimeError):
     pass
 
 
@@ -105,3 +111,69 @@ def rerank(question, passages):
             raise EmbeddingClientError("The embedding service returned an invalid score.")
         scores.extend(float(score) for score in batch_scores)
     return scores
+
+
+def _validate_answer(passage, answer):
+    if not isinstance(answer, dict):
+        raise AnswerClientError("The answer service returned an invalid answer.")
+    text = answer.get("answer")
+    score = answer.get("score")
+    start = answer.get("start")
+    end = answer.get("end")
+    if (
+        not isinstance(text, str)
+        or not isinstance(score, (int, float))
+        or isinstance(score, bool)
+        or not math.isfinite(score)
+    ):
+        raise AnswerClientError("The answer service returned an invalid answer.")
+    if not text:
+        if start is not None or end is not None:
+            raise AnswerClientError("The answer service returned invalid answer offsets.")
+        return {"answer": "", "score": float(score), "start": None, "end": None}
+    if (
+        not isinstance(start, int)
+        or isinstance(start, bool)
+        or not isinstance(end, int)
+        or isinstance(end, bool)
+        or start < 0
+        or end <= start
+        or end > len(passage)
+        or passage[start:end] != text
+    ):
+        raise AnswerClientError("The answer service returned invalid answer offsets.")
+    return {"answer": text, "score": float(score), "start": start, "end": end}
+
+
+def extract_answers(question, passages):
+    if not isinstance(question, str) or not question.strip():
+        raise ValueError("question must not be empty")
+    if (
+        not isinstance(passages, list)
+        or not passages
+        or any(not isinstance(passage, str) or not passage.strip() for passage in passages)
+    ):
+        raise ValueError("passages must contain non-empty text")
+    question = question.strip()
+    passages = [passage.strip() for passage in passages]
+    answers = []
+    for start in range(0, len(passages), QA_BATCH_SIZE):
+        batch = passages[start : start + QA_BATCH_SIZE]
+        try:
+            result = _post(
+                "/answer",
+                {"question": question, "passages": batch},
+                30,
+                QA_MODEL_NAME,
+                None,
+            )
+        except EmbeddingClientError as error:
+            raise AnswerClientError("The answer service is unavailable.") from error
+        batch_answers = result.get("answers")
+        if not isinstance(batch_answers, list) or len(batch_answers) != len(batch):
+            raise AnswerClientError("The answer service returned an unexpected number of answers.")
+        answers.extend(
+            _validate_answer(passage, answer)
+            for passage, answer in zip(batch, batch_answers)
+        )
+    return answers
