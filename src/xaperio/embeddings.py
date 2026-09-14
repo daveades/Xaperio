@@ -179,10 +179,13 @@ def answer_passages():
     except ValueError as error:
         return {"error": str(error)}, 400
     results = answerer(
-        [{"question": question, "context": passage} for passage in passages],
+        question=[question] * len(passages),
+        context=passages,
         batch_size=QA_BATCH_SIZE,
         handle_impossible_answer=True,
     )
+    if isinstance(results, dict):
+        results = [results]
     if not isinstance(results, list) or len(results) != len(passages):
         raise RuntimeError("answer model returned an unexpected number of results")
     answers = [_validated_answer(passage, result) for passage, result in zip(passages, results)]
