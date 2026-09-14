@@ -196,6 +196,10 @@ textarea:focus-visible {
   color: inherit;
 }
 
+.search-match__excerpt mark.search-match__answer {
+  font-weight: 700;
+}
+
 .search-match__open {
   margin-top: 0.55rem;
   color: var(--accent);
@@ -594,6 +598,49 @@ textarea:focus-visible {
 .reader__pdf-canvas {
   display: block;
   box-shadow: 0 3px 16px rgba(24, 34, 28, 0.12);
+}
+
+.reader__pdf-surface {
+  position: relative;
+  flex: none;
+  --total-scale-factor: var(--scale-factor);
+  --scale-round-x: 1px;
+  --scale-round-y: 1px;
+}
+
+.reader__pdf-text-layer {
+  position: absolute;
+  inset: 0;
+  overflow: clip;
+  line-height: 1;
+  letter-spacing: normal;
+  word-spacing: normal;
+  transform-origin: 0 0;
+  pointer-events: none;
+  --min-font-size: 1;
+  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+  --min-font-size-inv: calc(1 / var(--min-font-size));
+}
+
+.reader__pdf-text-layer :is(span, br) {
+  position: absolute;
+  color: transparent;
+  white-space: pre;
+  transform-origin: 0 0;
+}
+
+.reader__pdf-text-layer > :not(.markedContent),
+.reader__pdf-text-layer .markedContent span:not(.markedContent) {
+  --font-height: 0;
+  --scale-x: 1;
+  --rotate: 0deg;
+  z-index: 1;
+  font-size: calc(var(--text-scale-factor) * var(--font-height));
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+}
+
+.reader__pdf-text-layer .markedContent {
+  display: contents;
 }
 
 .reader__pdf-label {

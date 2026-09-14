@@ -113,6 +113,7 @@ export default function App() {
           from: "/search",
           searchResult: true,
           locator: match.locator,
+          highlight: match.answer || null,
         },
       },
     );
@@ -164,6 +165,7 @@ export default function App() {
                 epub={format === "epub"}
                 readFormat={format}
                 initialLocator={location.state?.locator}
+                initialHighlight={location.state?.highlight}
                 onBack={() => {
                   setBookSession((number) => number + 1);
                   if (location.state?.review) {

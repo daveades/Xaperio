@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import ePub from "epubjs";
 import PdfView from "./PdfView";
+import { findTextRange, highlightDocument } from "./readerHighlight";
 
 
-export default function Read({ bookId, epub, readFormat, initialLocator, onBack }) {
+export default function Read({ bookId, epub, readFormat, initialLocator, initialHighlight, onBack }) {
   const epubHost = useRef(null);
   const frameRef = useRef(null);
   const rendition = useRef(null);
@@ -66,6 +67,7 @@ export default function Read({ bookId, epub, readFormat, initialLocator, onBack 
     let saveTimer;
     let lastCfi = null;
     let book;
+    let highlightCleanup;
     setLoading(true);
     setFailed(false);
     setTurning(false);
@@ -125,6 +127,23 @@ export default function Read({ bookId, epub, readFormat, initialLocator, onBack 
         });
         await r.display(start || undefined);
         if (stopped) return;
+        if (initialHighlight) {
+          for (const contents of r.getContents()) {
+            const range = findTextRange(contents.document.body, initialHighlight);
+            if (!range) continue;
+            await r.display(contents.cfiFromRange(range));
+            if (stopped) return;
+            for (const displayed of r.getContents()) {
+              highlightCleanup = highlightDocument(
+                displayed.document.body,
+                initialHighlight,
+                false,
+              );
+              if (highlightCleanup) break;
+            }
+            break;
+          }
+        }
         const loc = r.currentLocation();
         setBounds({ start: !!loc?.atStart, end: !!loc?.atEnd });
         setLoading(false);
@@ -140,9 +159,10 @@ export default function Read({ bookId, epub, readFormat, initialLocator, onBack 
       rendition.current = null;
       clearTimeout(saveTimer);
       flush();
+      if (highlightCleanup) highlightCleanup();
       if (book) book.destroy();
     };
-  }, [bookId, epub, epubTarget]);
+  }, [bookId, epub, epubTarget, initialHighlight]);
 
   useEffect(() => {
     if (epub || readFormat !== "html") return;
@@ -150,6 +170,7 @@ export default function Read({ bookId, epub, readFormat, initialLocator, onBack 
     let interval;
     const frame = frameRef.current;
     let saved = null;
+    let highlightCleanup;
     let last = null;
 
     function doc() {
@@ -204,6 +225,8 @@ export default function Read({ bookId, epub, readFormat, initialLocator, onBack 
         const win = frame.contentWindow;
         const documentEl = doc();
         if (!documentEl) return;
+        if (highlightCleanup) highlightCleanup();
+        highlightCleanup = highlightDocument(documentEl.body || documentEl, initialHighlight);
         if (htmlAnchor) {
           const section = documentEl.getElementById(htmlAnchor);
           if (section) win.scrollTo(0, section.offsetTop);
@@ -250,6 +273,7 @@ export default function Read({ bookId, epub, readFormat, initialLocator, onBack 
       clearTimeout(saveTimer);
       clearInterval(interval);
       flush();
+      if (highlightCleanup) highlightCleanup();
       if (frame) {
         frame.removeEventListener("load", restore);
       }
@@ -260,7 +284,7 @@ export default function Read({ bookId, epub, readFormat, initialLocator, onBack 
         frameDoc.removeEventListener("scroll", onChange, true);
       }
     };
-  }, [bookId, epub, readFormat, htmlAnchor]);
+  }, [bookId, epub, readFormat, htmlAnchor, initialHighlight]);
 
   if (epub) {
     return (
@@ -297,7 +321,15 @@ export default function Read({ bookId, epub, readFormat, initialLocator, onBack 
   }
 
   if (readFormat === "pdf") {
-    return <PdfView bookId={bookId} initialPage={initialLocator?.page_start} onBack={onBack} />;
+    return (
+      <PdfView
+        bookId={bookId}
+        initialPage={initialLocator?.page_start}
+        initialEndPage={initialLocator?.page_end}
+        initialHighlight={initialHighlight}
+        onBack={onBack}
+      />
+    );
   }
 
   return (

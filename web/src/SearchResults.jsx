@@ -68,7 +68,27 @@ function queryTerms(query) {
     .sort((first, second) => second.length - first.length);
 }
 
-function highlightExcerpt(excerpt, query) {
+function highlightExcerpt(excerpt, query, answer, answerStart, answerEnd) {
+  const hasAnswer =
+    typeof excerpt === "string" &&
+    typeof answer === "string" &&
+    Number.isInteger(answerStart) &&
+    Number.isInteger(answerEnd) &&
+    answerStart >= 0 &&
+    answerEnd > answerStart &&
+    answerEnd <= excerpt.length &&
+    excerpt.slice(answerStart, answerEnd) === answer;
+
+  if (hasAnswer) {
+    return (
+      <>
+        {excerpt.slice(0, answerStart)}
+        <mark className="search-match__answer">{answer}</mark>
+        {excerpt.slice(answerEnd)}
+      </>
+    );
+  }
+
   const terms = queryTerms(query);
   if (terms.length === 0) return excerpt;
   const escaped = terms.map((term) => {
@@ -168,7 +188,13 @@ export default function SearchResults({ books, query, onSelectBook, onSelectMatc
                           </span>
                         </div>
                         <p className="search-match__excerpt">
-                          {highlightExcerpt(match.excerpt, query)}
+                          {highlightExcerpt(
+                            match.excerpt,
+                            query,
+                            match.answer,
+                            match.answer_start,
+                            match.answer_end,
+                          )}
                         </p>
                         {supported && (
                           <button

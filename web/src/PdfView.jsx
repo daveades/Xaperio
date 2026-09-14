@@ -1,10 +1,11 @@
 import { useRef, useState, useEffect, useLayoutEffect, useCallback } from "react";
 import * as pdfjsLib from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import { containsText, highlightDocument } from "./readerHighlight";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 
-export default function PdfView({ bookId, initialPage, onBack }) {
+export default function PdfView({ bookId, initialPage, initialEndPage, initialHighlight, onBack }) {
   const scrollRef = useRef(null);
   const currentRef = useRef(1);
   const readyRef = useRef(false);
@@ -31,9 +32,22 @@ export default function PdfView({ bookId, initialPage, onBack }) {
       });
       await pd.task.promise;
       pd.rendered = scale;
+      if (pd.highlightContent && pd.textLayerEl && pd.textRendered !== scale) {
+        if (pd.highlightCleanup) pd.highlightCleanup();
+        if (pd.textLayerTask) pd.textLayerTask.cancel();
+        pd.textLayerEl.replaceChildren();
+        pd.textLayerTask = new pdfjsLib.TextLayer({
+          textContentSource: pd.highlightContent,
+          container: pd.textLayerEl,
+          viewport,
+        });
+        await pd.textLayerTask.render();
+        pd.textRendered = scale;
+        pd.highlightCleanup = highlightDocument(pd.textLayerEl, initialHighlight, false);
+      }
       if (pd.active) setErrors((items) => items.filter((num) => num !== pd.num));
     } catch (err) {
-      if (pd.active && err.name !== "RenderingCancelledException") {
+      if (pd.active && !["AbortException", "RenderingCancelledException"].includes(err.name)) {
         setErrors((items) => items.includes(pd.num) ? items : [...items, pd.num]);
       }
     } finally {
@@ -41,7 +55,7 @@ export default function PdfView({ bookId, initialPage, onBack }) {
       pd.task = null;
       if (pd.active && pd.visible && scale !== pd.scale) renderPage(pd);
     }
-  }, []);
+  }, [initialHighlight]);
 
   const goTo = useCallback((num) => {
     if (!Number.isInteger(num) || num < 1 || num > pages.length) return;
@@ -79,10 +93,38 @@ export default function PdfView({ bookId, initialPage, onBack }) {
           if (stopped) return;
           const pdfPage = await pdf.getPage(num);
           const viewport = pdfPage.getViewport({ scale: 1 });
-          items.push({ num, pdfPage, width: viewport.width, height: viewport.height,
-            scale: 1, rendered: null, rendering: false, active: false, visible: false });
+          items.push({
+            num,
+            pdfPage,
+            width: viewport.width,
+            height: viewport.height,
+            scale: 1,
+            rendered: null,
+            rendering: false,
+            active: false,
+            visible: false,
+            highlightContent: null,
+            highlightCleanup: null,
+            textLayerTask: null,
+            textRendered: null,
+          });
         }
-        let start = Number(initialPage);
+        let highlightedPage = null;
+        const rangeStart = Number(initialPage);
+        const requestedEnd = Number(initialEndPage);
+        if (initialHighlight && Number.isInteger(rangeStart) && rangeStart >= 1 && rangeStart <= items.length) {
+          const rangeEnd = Number.isInteger(requestedEnd)
+            ? Math.min(items.length, requestedEnd, rangeStart + 4)
+            : rangeStart;
+          for (let num = rangeStart; num <= Math.max(rangeStart, rangeEnd); num++) {
+            const textContent = await items[num - 1].pdfPage.getTextContent();
+            if (!containsText(textContent.items.map((item) => item.str || ""), initialHighlight)) continue;
+            items[num - 1].highlightContent = textContent;
+            highlightedPage = num;
+            break;
+          }
+        }
+        let start = highlightedPage || Number(initialPage);
         if (!Number.isInteger(start) || start < 1 || start > items.length) {
           const saved = await fetch("/books/" + bookId + "/progress", { signal: controller.signal })
             .then((res) => res.ok ? res.json() : {}).catch(() => ({}));
@@ -101,7 +143,7 @@ export default function PdfView({ bookId, initialPage, onBack }) {
       controller.abort();
       if (task) task.destroy().catch(() => {});
     };
-  }, [bookId, initialPage]);
+  }, [bookId, initialPage, initialEndPage, initialHighlight]);
 
   useLayoutEffect(() => {
     if (!pages.length) return;
@@ -128,10 +170,15 @@ export default function PdfView({ bookId, initialPage, onBack }) {
       for (const pd of pages) {
         pd.scale = width / pd.width;
         pd.el.style.height = pd.height * pd.scale + 48 + "px";
+        pd.surface.style.width = width + "px";
+        pd.surface.style.height = pd.height * pd.scale + "px";
+        pd.surface.style.setProperty("--scale-factor", String(pd.scale));
         pd.canvas.style.width = width + "px";
         pd.canvas.style.height = pd.height * pd.scale + "px";
         if (pd.task) pd.task.cancel();
-        if (pd.visible) renderPage(pd);
+        if (pd.textLayerTask) pd.textLayerTask.cancel();
+        pd.textRendered = null;
+        if (pd.visible || pd.highlightContent) renderPage(pd);
       }
       goTo(currentRef.current);
     }
@@ -179,6 +226,8 @@ export default function PdfView({ bookId, initialPage, onBack }) {
       for (const pd of pages) {
         pd.active = false;
         if (pd.task) pd.task.cancel();
+        if (pd.textLayerTask) pd.textLayerTask.cancel();
+        if (pd.highlightCleanup) pd.highlightCleanup();
       }
     };
   }, [pages, bookId, goTo, renderPage]);
@@ -210,8 +259,15 @@ export default function PdfView({ bookId, initialPage, onBack }) {
       <div ref={scrollRef} className="reader__pdf" aria-label="PDF pages" aria-busy={loading}>
         {pages.map((pd) => (
           <div key={pd.num} ref={(el) => { pd.el = el; }} data-page={pd.num} className="reader__pdf-page">
-            <canvas ref={(canvas) => { pd.canvas = canvas; }} className="reader__pdf-canvas"
-              role="img" aria-label={`Page ${pd.num}`} />
+            <div ref={(el) => { pd.surface = el; }} className="reader__pdf-surface">
+              <canvas ref={(canvas) => { pd.canvas = canvas; }} className="reader__pdf-canvas"
+                role="img" aria-label={`Page ${pd.num}`} />
+              <div
+                ref={(el) => { pd.textLayerEl = el; }}
+                className="reader__pdf-text-layer"
+                aria-hidden="true"
+              />
+            </div>
             {errors.includes(pd.num) && (
               <div className="reader__page-error" role="alert">
                 <p>Page {pd.num} could not be displayed.</p>
