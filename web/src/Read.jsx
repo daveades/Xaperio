@@ -67,7 +67,7 @@ export default function Read({ bookId, epub, readFormat, initialLocator, initial
     let saveTimer;
     let lastCfi = null;
     let book;
-    let highlightCleanup;
+    let highlightCfi;
     setLoading(true);
     setFailed(false);
     setTurning(false);
@@ -145,16 +145,16 @@ export default function Read({ bookId, epub, readFormat, initialLocator, initial
           for (const contents of r.getContents()) {
             const range = findTextRange(contents.document.body, initialHighlight);
             if (!range) continue;
-            await r.display(contents.cfiFromRange(range));
+            highlightCfi = contents.cfiFromRange(range);
+            await r.display(highlightCfi);
             if (stopped) return;
-            for (const displayed of r.getContents()) {
-              highlightCleanup = highlightDocument(
-                displayed.document.body,
-                initialHighlight,
-                false,
-              );
-              if (highlightCleanup) break;
-            }
+            r.annotations.highlight(
+              highlightCfi,
+              {},
+              null,
+              "xaperio-answer",
+              { fill: "#f5d75b", "fill-opacity": "0.38", "mix-blend-mode": "multiply" },
+            );
             break;
           }
         }
@@ -173,7 +173,7 @@ export default function Read({ bookId, epub, readFormat, initialLocator, initial
       rendition.current = null;
       clearTimeout(saveTimer);
       flush();
-      if (highlightCleanup) highlightCleanup();
+      if (highlightCfi && r) r.annotations.remove(highlightCfi, "highlight");
       if (book) book.destroy();
     };
   }, [bookId, epub, epubTarget, initialHighlight]);
