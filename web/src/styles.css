@@ -599,7 +599,8 @@ textarea:focus-visible {
 .reader__pdf-surface {
   position: relative;
   flex: none;
-  --total-scale-factor: var(--scale-factor);
+  --user-unit: 1;
+  --total-scale-factor: calc(var(--scale-factor) * var(--user-unit));
   --scale-round-x: 1px;
   --scale-round-y: 1px;
 }
@@ -608,11 +609,18 @@ textarea:focus-visible {
   position: absolute;
   inset: 0;
   overflow: clip;
+  opacity: 1;
+  text-align: initial;
   line-height: 1;
   letter-spacing: normal;
   word-spacing: normal;
+  -webkit-text-size-adjust: none;
+  -moz-text-size-adjust: none;
+  text-size-adjust: none;
+  forced-color-adjust: none;
   transform-origin: 0 0;
   pointer-events: none;
+  z-index: 0;
   --min-font-size: 1;
   --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
   --min-font-size-inv: calc(1 / var(--min-font-size));

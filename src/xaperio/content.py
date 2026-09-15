@@ -263,7 +263,7 @@ def extract_epub_sections(data):
             if not archive_name:
                 raise ContentExtractionError(f"EPUB reading document '{href}' is missing.")
 
-            for section in extract_html_sections(archive.read(archive_name), archive_path):
+            for section in extract_html_sections(archive.read(archive_name), href):
                 section["order"] = len(sections)
                 sections.append(section)
         return sections

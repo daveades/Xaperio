@@ -95,6 +95,20 @@ export default function Read({ bookId, epub, readFormat, initialLocator, initial
         const buf = await res.arrayBuffer();
         if (stopped) return;
         book = ePub(buf);
+        await book.ready;
+        if (stopped) return;
+        let resolvedEpubTarget = epubTarget;
+        if (epubHref) {
+          const section = book.spine.spineItems.find((item) =>
+            epubHref === item.href ||
+            epubHref.endsWith("/" + item.href) ||
+            epubHref.endsWith("/" + decodeURI(item.href)),
+          );
+          if (section) {
+            resolvedEpubTarget = section.href +
+              (epubAnchor ? "#" + encodeURIComponent(epubAnchor) : "");
+          }
+        }
         r = book.renderTo(epubHost.current, {
           width: "100%",
           height: "100%",
@@ -106,7 +120,7 @@ export default function Read({ bookId, epub, readFormat, initialLocator, initial
         }
         rendition.current = r;
 
-        let start = epubTarget;
+        let start = resolvedEpubTarget;
         if (!start) {
           const saved = await fetch("/books/" + bookId + "/progress")
             .then((x) => x.json())

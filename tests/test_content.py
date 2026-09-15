@@ -74,8 +74,8 @@ class ContentExtractionTests(unittest.TestCase):
         sections = content.extract_sections(self.epub_bytes(), "epub")
 
         self.assertEqual([section["title"] for section in sections], ["First", "Second"])
-        self.assertEqual(sections[0]["locator"], {"href": "OPS/first.xhtml", "anchor": "first"})
-        self.assertEqual(sections[1]["locator"], {"href": "OPS/second.xhtml", "anchor": "second"})
+        self.assertEqual(sections[0]["locator"], {"href": "first.xhtml", "anchor": "first"})
+        self.assertEqual(sections[1]["locator"], {"href": "second.xhtml", "anchor": "second"})
 
     def test_html_splits_headings_and_removes_non_visible_content(self):
         data = b"""<html><head><title>Example</title><style>.hidden {}</style></head><body>

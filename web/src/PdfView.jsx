@@ -33,17 +33,24 @@ export default function PdfView({ bookId, initialPage, initialEndPage, initialHi
       await pd.task.promise;
       pd.rendered = scale;
       if (pd.highlightContent && pd.textLayerEl && pd.textRendered !== scale) {
-        if (pd.highlightCleanup) pd.highlightCleanup();
-        if (pd.textLayerTask) pd.textLayerTask.cancel();
-        pd.textLayerEl.replaceChildren();
-        pd.textLayerTask = new pdfjsLib.TextLayer({
-          textContentSource: pd.highlightContent,
-          container: pd.textLayerEl,
-          viewport,
-        });
-        await pd.textLayerTask.render();
-        pd.textRendered = scale;
-        pd.highlightCleanup = highlightDocument(pd.textLayerEl, initialHighlight, false);
+        try {
+          if (pd.highlightCleanup) pd.highlightCleanup();
+          if (pd.textLayerTask) pd.textLayerTask.cancel();
+          pd.textLayerEl.replaceChildren();
+          pd.textLayerTask = new pdfjsLib.TextLayer({
+            textContentSource: pd.highlightContent,
+            container: pd.textLayerEl,
+            viewport,
+          });
+          await pd.textLayerTask.render();
+          pd.textRendered = scale;
+          pd.highlightCleanup = highlightDocument(pd.textLayerEl, initialHighlight, false);
+        } catch (err) {
+          if (!["AbortException", "RenderingCancelledException"].includes(err.name)) {
+            pd.highlightContent = null;
+            pd.textLayerEl.replaceChildren();
+          }
+        }
       }
       if (pd.active) setErrors((items) => items.filter((num) => num !== pd.num));
     } catch (err) {
@@ -98,6 +105,7 @@ export default function PdfView({ bookId, initialPage, initialEndPage, initialHi
             pdfPage,
             width: viewport.width,
             height: viewport.height,
+            userUnit: viewport.userUnit,
             scale: 1,
             rendered: null,
             rendering: false,
@@ -117,11 +125,15 @@ export default function PdfView({ bookId, initialPage, initialEndPage, initialHi
             ? Math.min(items.length, requestedEnd, rangeStart + 4)
             : rangeStart;
           for (let num = rangeStart; num <= Math.max(rangeStart, rangeEnd); num++) {
-            const textContent = await items[num - 1].pdfPage.getTextContent();
-            if (!containsText(textContent.items.map((item) => item.str || ""), initialHighlight)) continue;
-            items[num - 1].highlightContent = textContent;
-            highlightedPage = num;
-            break;
+            try {
+              const textContent = await items[num - 1].pdfPage.getTextContent();
+              if (!containsText(textContent.items.map((item) => item.str || ""), initialHighlight)) continue;
+              items[num - 1].highlightContent = textContent;
+              highlightedPage = num;
+              break;
+            } catch {
+              continue;
+            }
           }
         }
         let start = highlightedPage || Number(initialPage);
@@ -173,6 +185,7 @@ export default function PdfView({ bookId, initialPage, initialEndPage, initialHi
         pd.surface.style.width = width + "px";
         pd.surface.style.height = pd.height * pd.scale + "px";
         pd.surface.style.setProperty("--scale-factor", String(pd.scale));
+        pd.surface.style.setProperty("--user-unit", String(pd.userUnit));
         pd.canvas.style.width = width + "px";
         pd.canvas.style.height = pd.height * pd.scale + "px";
         if (pd.task) pd.task.cancel();
