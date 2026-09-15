@@ -196,10 +196,6 @@ textarea:focus-visible {
   color: inherit;
 }
 
-.search-match__excerpt mark.search-match__answer {
-  font-weight: 700;
-}
-
 .search-match__open {
   margin-top: 0.55rem;
   color: var(--accent);

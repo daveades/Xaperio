@@ -113,7 +113,7 @@ export default function App() {
           from: "/search",
           searchResult: true,
           locator: match.locator,
-          highlight: match.answer || null,
+          highlight: match.passage || null,
         },
       },
     );

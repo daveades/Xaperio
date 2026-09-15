@@ -1,121 +1,24 @@
-const SEARCH_STOP_WORDS = new Set([
-  "a",
-  "an",
-  "and",
-  "are",
-  "as",
-  "at",
-  "be",
-  "been",
-  "being",
-  "by",
-  "can",
-  "could",
-  "did",
-  "do",
-  "does",
-  "for",
-  "from",
-  "had",
-  "has",
-  "have",
-  "how",
-  "if",
-  "in",
-  "into",
-  "is",
-  "it",
-  "its",
-  "may",
-  "might",
-  "must",
-  "no",
-  "not",
-  "of",
-  "on",
-  "or",
-  "shall",
-  "should",
-  "that",
-  "the",
-  "their",
-  "them",
-  "then",
-  "there",
-  "these",
-  "they",
-  "this",
-  "those",
-  "to",
-  "was",
-  "were",
-  "what",
-  "when",
-  "where",
-  "which",
-  "who",
-  "why",
-  "will",
-  "with",
-  "would",
-  "you",
-  "your",
-]);
-
-function queryTerms(query) {
-  return Array.from(new Set(query.match(/[\p{L}\p{N}]+/gu) || []))
-    .filter((term) => term.length > 1 && !SEARCH_STOP_WORDS.has(term.toLocaleLowerCase()))
-    .sort((first, second) => second.length - first.length);
-}
-
-function highlightExcerpt(excerpt, query, answer, answerStart, answerEnd) {
-  const hasAnswer =
+function highlightExcerpt(excerpt, passage, passageStart, passageEnd) {
+  const hasPassage =
     typeof excerpt === "string" &&
-    typeof answer === "string" &&
-    Number.isInteger(answerStart) &&
-    Number.isInteger(answerEnd) &&
-    answerStart >= 0 &&
-    answerEnd > answerStart &&
-    answerEnd <= excerpt.length &&
-    excerpt.slice(answerStart, answerEnd) === answer;
+    typeof passage === "string" &&
+    Number.isInteger(passageStart) &&
+    Number.isInteger(passageEnd) &&
+    passageStart >= 0 &&
+    passageEnd > passageStart &&
+    passageEnd <= excerpt.length &&
+    excerpt.slice(passageStart, passageEnd) === passage;
 
-  if (hasAnswer) {
+  if (hasPassage) {
     return (
       <>
-        {excerpt.slice(0, answerStart)}
-        <mark className="search-match__answer">{answer}</mark>
-        {excerpt.slice(answerEnd)}
+        {excerpt.slice(0, passageStart)}
+        <mark>{passage}</mark>
+        {excerpt.slice(passageEnd)}
       </>
     );
   }
-
-  const terms = queryTerms(query);
-  if (terms.length === 0) return excerpt;
-  const escaped = terms.map((term) => {
-    const lower = term.toLocaleLowerCase();
-    if (/[^aeiou]ies$/u.test(lower)) {
-      return `${lower.slice(0, -3).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:y|ies)`;
-    }
-    if (/(?:ses|xes|zes|ches|shes)$/u.test(lower)) {
-      return `${lower.slice(0, -2).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:es)?`;
-    }
-    if (/s$/u.test(lower) && !/(?:ss|us|is)$/u.test(lower)) {
-      return `${lower.slice(0, -1).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}s?`;
-    }
-    if (/[^aeiou]y$/u.test(lower)) {
-      return `${lower.slice(0, -1).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:y|ies)`;
-    }
-    const safe = lower.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    if (/(?:s|x|z|ch|sh)$/u.test(lower)) return `${safe}(?:es)?`;
-    return `${safe}s?`;
-  });
-  const pattern = new RegExp(
-    `(?<![\\p{L}\\p{N}])(${escaped.join("|")})(?![\\p{L}\\p{N}])`,
-    "giu",
-  );
-  return excerpt.split(pattern).map((part, index) =>
-    index % 2 === 1 ? <mark key={index}>{part}</mark> : part,
-  );
+  return excerpt;
 }
 
 function pageLabel(match) {
@@ -141,7 +44,7 @@ function canOpenMatch(match) {
   return false;
 }
 
-export default function SearchResults({ books, query, onSelectBook, onSelectMatch }) {
+export default function SearchResults({ books, onSelectBook, onSelectMatch }) {
   return (
     <ol className="search-results">
       {books.map((book) => {
@@ -190,10 +93,9 @@ export default function SearchResults({ books, query, onSelectBook, onSelectMatc
                         <p className="search-match__excerpt">
                           {highlightExcerpt(
                             match.excerpt,
-                            query,
-                            match.answer,
-                            match.answer_start,
-                            match.answer_end,
+                            match.passage,
+                            match.passage_start,
+                            match.passage_end,
                           )}
                         </p>
                         {supported && (

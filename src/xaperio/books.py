@@ -483,18 +483,43 @@ def _rerank_passages(query, results, reranker):
 
 
 def _answer_excerpt(text, answer_start, answer_end):
-    if len(text) <= SEARCH_EXCERPT_CHARACTERS:
-        return text, answer_start, answer_end
-    answer_length = answer_end - answer_start
-    surrounding = max(0, SEARCH_EXCERPT_CHARACTERS - answer_length - 6)
-    excerpt_start = max(0, answer_start - surrounding // 2)
-    excerpt_end = min(len(text), answer_end + surrounding - (answer_start - excerpt_start))
-    excerpt_start = max(0, excerpt_end - answer_length - surrounding)
+    sentence_start = 0
+    for boundary in re.finditer(r"[.!?](?:\s+|$)", text[:answer_start]):
+        sentence_start = boundary.end()
+    sentence_end_match = re.search(r"[.!?](?:\s+|$)", text[answer_end:])
+    sentence_end = (
+        answer_end + sentence_end_match.start() + 1
+        if sentence_end_match
+        else len(text)
+    )
+    while sentence_start < answer_start and text[sentence_start].isspace():
+        sentence_start += 1
+    passage = text[sentence_start:sentence_end]
+    if len(passage) >= SEARCH_EXCERPT_CHARACTERS:
+        return (
+            passage,
+            answer_start - sentence_start,
+            answer_end - sentence_start,
+            passage,
+            0,
+            len(passage),
+        )
+    surrounding = max(0, SEARCH_EXCERPT_CHARACTERS - len(passage) - 6)
+    excerpt_start = max(0, sentence_start - surrounding // 2)
+    excerpt_end = min(len(text), sentence_end + surrounding - (sentence_start - excerpt_start))
+    excerpt_start = max(0, excerpt_end - len(passage) - surrounding)
     prefix = "..." if excerpt_start else ""
     suffix = "..." if excerpt_end < len(text) else ""
     excerpt = f"{prefix}{text[excerpt_start:excerpt_end]}{suffix}"
     offset = len(prefix) - excerpt_start
-    return excerpt, answer_start + offset, answer_end + offset
+    return (
+        excerpt,
+        answer_start + offset,
+        answer_end + offset,
+        passage,
+        sentence_start + offset,
+        sentence_end + offset,
+    )
 
 
 def _extract_passage_answers(query, passages, answerer):
@@ -526,7 +551,14 @@ def _passage_match(passage):
     if "answer" not in passage:
         match["excerpt"] = _excerpt(passage["content"])
         return match
-    excerpt, answer_start, answer_end = _answer_excerpt(
+    (
+        excerpt,
+        answer_start,
+        answer_end,
+        supporting_passage,
+        passage_start,
+        passage_end,
+    ) = _answer_excerpt(
         passage["content"],
         passage["answer_start"],
         passage["answer_end"],
@@ -538,6 +570,9 @@ def _passage_match(passage):
             "answer_score": passage["answer_score"],
             "answer_start": answer_start,
             "answer_end": answer_end,
+            "passage": supporting_passage,
+            "passage_start": passage_start,
+            "passage_end": passage_end,
         }
     )
     return match
