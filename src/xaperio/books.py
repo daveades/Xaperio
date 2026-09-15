@@ -23,8 +23,8 @@ RERANK_WINDOW_LIMIT = 60
 RERANK_PASSAGE_LIMIT = 30
 RERANK_PASSAGES_PER_SECTION = 2
 RERANK_WINDOWS_PER_CHUNK = 8
-RERANK_WINDOW_SENTENCES = 2
-RERANK_WINDOW_OVERLAP = 1
+RERANK_WINDOW_SENTENCES = 1
+RERANK_WINDOW_OVERLAP = 0
 MIN_RERANK_SCORE = 0.20
 MIN_ANSWER_SCORE = 0.20
 
@@ -549,7 +549,12 @@ def _passage_match(passage):
         "format": passage["format"],
     }
     if "answer" not in passage:
-        match["excerpt"] = _excerpt(passage["content"])
+        excerpt = _excerpt(passage["content"])
+        supporting_passage = excerpt[:-3] if excerpt.endswith("...") else excerpt
+        match["excerpt"] = excerpt
+        match["passage"] = supporting_passage
+        match["passage_start"] = 0
+        match["passage_end"] = len(supporting_passage)
         return match
     (
         excerpt,
