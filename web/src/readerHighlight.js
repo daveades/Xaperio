@@ -86,7 +86,7 @@ export function highlightDocument(root, phrase, scroll = true) {
   if (!style && documentEl.head) {
     style = documentEl.createElement("style");
     style.setAttribute(STYLE_ATTRIBUTE, "");
-    style.textContent = `::highlight(${HIGHLIGHT_NAME}) { background: #f5e7ac; color: inherit; }`;
+    style.textContent = `::highlight(${HIGHLIGHT_NAME}) { background: rgba(245, 215, 91, 0.38); color: inherit; }`;
     documentEl.head.append(style);
   }
   const highlight = new view.Highlight(range);
