@@ -411,6 +411,36 @@ textarea:focus-visible {
   cursor: default;
 }
 
+.ask__options {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+  margin-top: 0.75rem;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.ask__option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--ink);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ask__option input {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.ask__hint {
+  text-align: right;
+}
+
 .text-btn {
   padding: 0;
   border: 0;
@@ -1343,6 +1373,15 @@ textarea:focus-visible {
     flex: none;
     font-size: 0.8125rem;
     white-space: nowrap;
+  }
+
+  .ask__options {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .ask__hint {
+    text-align: left;
   }
 
   .submission,

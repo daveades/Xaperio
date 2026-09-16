@@ -88,6 +88,9 @@ def browse():
 @app.get("/search")
 def search():
     query = request.args.get("q", "")
+    if request.args.get("scope") == "books":
+        with db.connect() as conn:
+            return books.search_books(conn, query, content_search=False)
     query_embedding = None
     if query.strip():
         try:

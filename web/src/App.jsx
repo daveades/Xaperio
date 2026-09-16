@@ -16,6 +16,7 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [checking, setChecking] = useState(true);
   const [query, setQuery] = useState("");
+  const [searchInsideBooks, setSearchInsideBooks] = useState(true);
   const [books, setBooks] = useState(null);
   const [failed, setFailed] = useState(false);
   const [bookSession, setBookSession] = useState(0);
@@ -84,9 +85,11 @@ export default function App() {
     if (mode === "browse" && user) load("/books");
   }, [mode, user]);
 
-  function search(text) {
+  function search(text, insideBooks) {
     setQuery(text);
-    load("/search?q=" + encodeURIComponent(text));
+    setSearchInsideBooks(insideBooks);
+    const scope = insideBooks ? "content" : "books";
+    load("/search?q=" + encodeURIComponent(text) + "&scope=" + scope);
   }
 
   function show(next) {
@@ -225,7 +228,7 @@ export default function App() {
               <strong>{books.length}</strong> {books.length === 1 ? "book" : "books"} for “{query}”
             </p>
           )}
-          {mode === "search" ? (
+          {mode === "search" && searchInsideBooks ? (
             <SearchResults
               books={books}
               query={query}

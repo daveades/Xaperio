@@ -590,16 +590,17 @@ def search_books(
     model_version=None,
     reranker=None,
     answerer=None,
+    content_search=True,
 ):
     query = q.strip()
     if not query:
         return []
     with conn.cursor() as cur:
         metadata_rows = _metadata_matches(cur, query)
-        lexical_rows = _lexical_matches(cur, query)
+        lexical_rows = _lexical_matches(cur, query) if content_search else []
         semantic_rows = (
             _semantic_matches(cur, query_embedding, model_version)
-            if query_embedding is not None
+            if content_search and query_embedding is not None
             else []
         )
 
@@ -612,7 +613,7 @@ def search_books(
     for row in semantic_rows:
         _add_section_match(_book_result(results, row), row, "semantic_score")
 
-    reranked_passages = _rerank_passages(query, results, reranker) if reranker else None
+    reranked_passages = _rerank_passages(query, results, reranker) if content_search and reranker else None
     if reranked_passages and answerer:
         reranked_passages = _extract_passage_answers(query, reranked_passages, answerer)
     passages_by_book = {}
