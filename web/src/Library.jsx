@@ -1,6 +1,6 @@
 import { formatTimeAgo } from "./ContinueReading";
 
-export default function Library({ history, loading, failed, onResume, onSelect, onBrowse }) {
+export default function Library({ history, loading, failed, onResume, onBrowse }) {
   if (loading) {
     return <p className="status">Loading your library...</p>;
   }
@@ -35,60 +35,37 @@ export default function Library({ history, loading, failed, onResume, onSelect, 
         </span>
       </div>
 
-      <ul className="library__list">
+      <ul className="books">
         {history.map((book) => {
           const timeAgo = formatTimeAgo(book.updated_at);
 
           return (
-            <li key={book.id} className="library-item">
-              <div className="library-item__main">
+            <li key={book.id} className="book">
+              <button
+                type="button"
+                className="book__select"
+                onClick={() => onResume(book)}
+              >
                 {book.cover_ref ? (
                   <img
-                    className="library-item__cover"
+                    className="book__cover"
                     src={"/books/" + book.id + "/cover"}
                     alt=""
                     loading="lazy"
                   />
                 ) : (
-                  <div className="library-item__cover library-item__cover--placeholder" />
+                  <span className="book__cover book__cover--placeholder" aria-hidden="true" />
                 )}
 
-                <div className="library-item__body">
-                  <button
-                    type="button"
-                    className="library-item__title"
-                    onClick={() => onResume(book)}
-                  >
-                    {book.title}
-                  </button>
-                  <p className="library-item__authors">
+                <span className="book__text">
+                  <span className="book__title">{book.title}</span>
+                  <span className="book__authors">
                     {book.authors && book.authors.join(", ")}
-                  </p>
-
-                  {timeAgo && (
-                    <div className="library-item__meta">
-                      <span className="library-item__time">Read {timeAgo}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="library-item__actions">
-                <button
-                  type="button"
-                  className="btn btn--resume"
-                  onClick={() => onResume(book)}
-                >
-                  Resume
-                </button>
-                <button
-                  type="button"
-                  className="text-btn text-btn--muted"
-                  onClick={() => onSelect(book.id)}
-                >
-                  Details
-                </button>
-              </div>
+                    {timeAgo && ` · Read ${timeAgo}`}
+                  </span>
+                </span>
+                <span className="book__arrow" aria-hidden="true">›</span>
+              </button>
             </li>
           );
         })}

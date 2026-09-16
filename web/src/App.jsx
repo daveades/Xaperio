@@ -316,7 +316,6 @@ export default function App() {
               loading={historyLoading}
               failed={historyFailed}
               onResume={resumeBook}
-              onSelect={openBook}
               onBrowse={() => show("browse")}
             />
           }
