@@ -202,7 +202,7 @@ export default function App() {
         <p className="status">
           {mode === "search"
             ? "Search could not be completed. Try again."
-            : "The library did not answer."}
+            : "Could not load the library."}
         </p>
       )}
       {!waiting && !failed && books === null && (

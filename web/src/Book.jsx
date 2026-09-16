@@ -56,7 +56,7 @@ export default function Book({ bookId, canDelete, onRead, onBack, onDeleted }) {
         </p>
         <p className="status">
           {failed
-            ? "The library did not answer."
+            ? "Could not load this book."
             : missing
               ? "This book is not in the library."
               : "Loading."}
