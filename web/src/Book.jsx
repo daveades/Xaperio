@@ -133,23 +133,26 @@ export default function Book({ bookId, canDelete, onRead, onBack, onDeleted }) {
               </span>
             )}
           </div>
-          {book.description && (
-            <section className="detail__description" aria-labelledby="about-book">
-              <h3 id="about-book">About this book</h3>
-              <p>{book.description}</p>
-            </section>
-          )}
-
-          <dl className="detail__metadata">
-            {book.publisher && <div><dt>Publisher</dt><dd>{book.publisher}</dd></div>}
-            {book.pub_year && <div><dt>Published</dt><dd>{book.pub_year}</dd></div>}
-            {book.edition && <div><dt>Edition</dt><dd>{book.edition}</dd></div>}
-            {book.language && <div><dt>Language</dt><dd>{book.language}</dd></div>}
-            {book.topics && book.topics.length > 0 && <div><dt>Topics</dt><dd>{book.topics.join(", ")}</dd></div>}
-            <div><dt>License</dt><dd><a href={book.license_url}>{book.license_name}</a></dd></div>
-            {book.source_url && <div><dt>Source</dt><dd><a href={book.source_url}>Original publication</a></dd></div>}
-          </dl>
         </div>
+      </div>
+
+      <div className="detail__body">
+        {book.description && (
+          <section className="detail__description" aria-labelledby="about-book">
+            <h3 id="about-book">About this book</h3>
+            <p>{book.description}</p>
+          </section>
+        )}
+
+        <dl className="detail__metadata">
+          {book.publisher && <div><dt>Publisher</dt><dd>{book.publisher}</dd></div>}
+          {book.pub_year && <div><dt>Published</dt><dd>{book.pub_year}</dd></div>}
+          {book.edition && <div><dt>Edition</dt><dd>{book.edition}</dd></div>}
+          {book.language && <div><dt>Language</dt><dd>{book.language}</dd></div>}
+          {book.topics && book.topics.length > 0 && <div><dt>Topics</dt><dd>{book.topics.join(", ")}</dd></div>}
+          <div><dt>License</dt><dd><a href={book.license_url}>{book.license_name}</a></dd></div>
+          {book.source_url && <div><dt>Source</dt><dd><a href={book.source_url}>Original publication</a></dd></div>}
+        </dl>
       </div>
 
       {canDelete && (
