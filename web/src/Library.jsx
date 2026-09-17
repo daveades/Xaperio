@@ -6,17 +6,14 @@ export default function Library({ history, loading, failed, onResume, onBrowse }
   }
 
   if (failed) {
-    return <p className="status">Could not load your library.</p>;
+    return <p className="status">Oops! We ran into a problem 😔</p>;
   }
 
   if (!history || history.length === 0) {
     return (
       <div className="library-empty">
         <h2 className="list-head">Your Library</h2>
-        <p className="status">
-          You haven&apos;t started reading any books yet. Once you open a book to read, your
-          reading progress will be automatically saved and displayed here.
-        </p>
+        <p className="status">Open some books please!!!! 😂</p>
         <p>
           <button type="button" className="btn" onClick={onBrowse}>
             Explore Books

@@ -65,13 +65,6 @@ export default function Book({ bookId, canDelete, onRead, onBack, onDeleted }) {
     );
   }
 
-  const facts = [
-    book.language,
-    book.pub_year,
-    book.publisher,
-    book.edition,
-  ].filter(Boolean);
-
   const defaultFormat =
     (book.progress && book.progress.format) || book.read_format || (book.formats && book.formats[0]);
 
@@ -83,18 +76,29 @@ export default function Book({ bookId, canDelete, onRead, onBack, onDeleted }) {
         </button>
       </p>
 
-      <div className="detail__head">
-        {!coverHidden && (
+      <div className="detail__layout">
+        <div className="detail__visual">
+          {!coverHidden ? (
           <img
             className="detail__cover"
             src={"/books/" + bookId + "/cover"}
-            alt=""
+            alt={`Cover of ${book.title}`}
             onError={() => setCoverHidden(true)}
           />
-        )}
-        <div>
-          <h2 className="detail__title">{book.title}</h2>
-          <p className="detail__authors">{book.authors.join(", ")}</p>
+          ) : (
+            <span className="detail__cover detail__cover--placeholder" aria-hidden="true" />
+          )}
+          {book.formats && book.formats.length > 0 && (
+            <p className="detail__available">Available as {book.formats.map((format) => format.toUpperCase()).join(" · ")}</p>
+          )}
+        </div>
+
+        <div className="detail__content">
+          <header className="detail__heading">
+            <p className="detail__eyebrow">Book details</p>
+            <h2 className="detail__title">{book.title}</h2>
+            <p className="detail__authors">by {book.authors.join(", ")}</p>
+          </header>
           <div className="detail__actions">
             {defaultFormat ? (
               <>
@@ -129,34 +133,24 @@ export default function Book({ bookId, canDelete, onRead, onBack, onDeleted }) {
               </span>
             )}
           </div>
+          {book.description && (
+            <section className="detail__description" aria-labelledby="about-book">
+              <h3 id="about-book">About this book</h3>
+              <p>{book.description}</p>
+            </section>
+          )}
+
+          <dl className="detail__metadata">
+            {book.publisher && <div><dt>Publisher</dt><dd>{book.publisher}</dd></div>}
+            {book.pub_year && <div><dt>Published</dt><dd>{book.pub_year}</dd></div>}
+            {book.edition && <div><dt>Edition</dt><dd>{book.edition}</dd></div>}
+            {book.language && <div><dt>Language</dt><dd>{book.language}</dd></div>}
+            {book.topics && book.topics.length > 0 && <div><dt>Topics</dt><dd>{book.topics.join(", ")}</dd></div>}
+            <div><dt>License</dt><dd><a href={book.license_url}>{book.license_name}</a></dd></div>
+            {book.source_url && <div><dt>Source</dt><dd><a href={book.source_url}>Original publication</a></dd></div>}
+          </dl>
         </div>
       </div>
-
-      {book.description && <p className="detail__blurb">{book.description}</p>}
-
-      {facts.length > 0 && (
-        <p className="detail__row">
-          <span className="detail__label">Publication:</span> {facts.join(", ")}
-        </p>
-      )}
-
-      {book.topics && book.topics.length > 0 && (
-        <p className="detail__row">
-          <span className="detail__label">Topics:</span> {book.topics.join(", ")}
-        </p>
-      )}
-
-      <p className="detail__row">
-        <span className="detail__label">License:</span>{" "}
-        <a href={book.license_url}>{book.license_name}</a>
-      </p>
-
-      {book.source_url && (
-        <p className="detail__row">
-          <span className="detail__label">Source:</span>{" "}
-          <a href={book.source_url}>Original publication</a>
-        </p>
-      )}
 
       {canDelete && (
         <div className="detail__admin">

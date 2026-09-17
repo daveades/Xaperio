@@ -306,7 +306,7 @@ export default function App() {
           path="/"
           element={
             <>
-              <ContinueReading history={history} onResume={resumeBook} onSelect={openBook} />
+              <ContinueReading history={history} onResume={resumeBook} />
               {results}
             </>
           }

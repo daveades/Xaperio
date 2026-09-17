@@ -16,54 +16,39 @@ export function formatTimeAgo(isoDate) {
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-export default function ContinueReading({ history, onResume, onSelect }) {
+export default function ContinueReading({ history, onResume }) {
   if (!history || history.length === 0) return null;
 
   const current = history[0];
   const timeAgo = formatTimeAgo(current.updated_at);
 
   return (
-    <section className="continue-card" aria-label="Continue reading">
-      <div className="continue-card__header">
-        <h2 className="continue-card__tag">Continue reading</h2>
-        {timeAgo && <span className="continue-card__time">{timeAgo}</span>}
-      </div>
-
-      <div className="continue-card__content">
+    <section className="continue-reading" aria-labelledby="continue-reading-title">
+      <h2 className="list-head" id="continue-reading-title">Continue reading</h2>
+      <button
+        type="button"
+        className="continue-reading__book"
+        onClick={() => onResume(current)}
+      >
         {current.cover_ref ? (
           <img
-            className="continue-card__cover"
+            className="continue-reading__cover"
             src={"/books/" + current.id + "/cover"}
             alt=""
             loading="lazy"
           />
         ) : (
-          <span className="continue-card__cover continue-card__cover--placeholder" aria-hidden="true" />
+          <span className="continue-reading__cover continue-reading__cover--placeholder" aria-hidden="true" />
         )}
-        <div className="continue-card__info">
-          <h3 className="continue-card__title">{current.title}</h3>
-          <p className="continue-card__authors">
+        <span className="continue-reading__info">
+          {timeAgo && <span className="continue-reading__time">Last opened {timeAgo.toLowerCase()}</span>}
+          <span className="continue-reading__title">{current.title}</span>
+          <span className="continue-reading__authors">
             {current.authors && current.authors.join(", ")}
-          </p>
-
-          <div className="continue-card__actions">
-            <button
-              type="button"
-              className="btn btn--resume"
-              onClick={() => onResume(current)}
-            >
-              Resume
-            </button>
-            <button
-              type="button"
-              className="text-btn text-btn--muted"
-              onClick={() => onSelect(current.id)}
-            >
-              Book details
-            </button>
-          </div>
-        </div>
-      </div>
+          </span>
+        </span>
+        <span className="continue-reading__action" aria-hidden="true">›</span>
+      </button>
     </section>
   );
 }
