@@ -52,9 +52,6 @@ export default function Read({ bookId, epub, readFormat, initialLocator, initial
   }, [epub, loading, failed]);
   const epubHref = typeof initialLocator?.href === "string" ? initialLocator.href : null;
   const epubAnchor = typeof initialLocator?.anchor === "string" ? initialLocator.anchor : null;
-  const epubTarget = epubHref
-    ? epubHref + (epubAnchor ? "#" + encodeURIComponent(epubAnchor) : "")
-    : null;
   const htmlAnchor =
     readFormat === "html" && typeof initialLocator?.anchor === "string"
       ? initialLocator.anchor
@@ -97,15 +94,24 @@ export default function Read({ bookId, epub, readFormat, initialLocator, initial
         book = ePub(buf);
         await book.ready;
         if (stopped) return;
-        let resolvedEpubTarget = epubTarget;
+        let resolvedEpubTarget = null;
+        let resolvedEpubSection = null;
         if (epubHref) {
-          const section = book.spine.spineItems.find((item) =>
-            epubHref === item.href ||
-            epubHref.endsWith("/" + item.href) ||
-            epubHref.endsWith("/" + decodeURI(item.href)),
-          );
+          const indexedHref = epubHref.replace(/^\.\/+/, "");
+          const section = book.spine.spineItems.find((item) => {
+            let itemHref = item.href.replace(/^\.\/+/, "");
+            try {
+              itemHref = decodeURI(itemHref);
+            } catch {
+
+            }
+            return indexedHref === itemHref ||
+              indexedHref.endsWith("/" + itemHref) ||
+              itemHref.endsWith("/" + indexedHref);
+          });
           if (section) {
-            resolvedEpubTarget = section.href +
+            resolvedEpubSection = section.href;
+            resolvedEpubTarget = resolvedEpubSection +
               (epubAnchor ? "#" + encodeURIComponent(epubAnchor) : "");
           }
         }
@@ -121,7 +127,7 @@ export default function Read({ bookId, epub, readFormat, initialLocator, initial
         rendition.current = r;
 
         let start = resolvedEpubTarget;
-        if (!start) {
+        if (!start && !epubHref) {
           const saved = await fetch("/books/" + bookId + "/progress")
             .then((x) => x.json())
             .catch(() => ({}));
@@ -139,7 +145,17 @@ export default function Read({ bookId, epub, readFormat, initialLocator, initial
           clearTimeout(saveTimer);
           saveTimer = setTimeout(flush, 300);
         });
-        await r.display(start || undefined);
+        try {
+          await r.display(start || undefined);
+        } catch {
+          if (resolvedEpubSection && start !== resolvedEpubSection) {
+            await r.display(resolvedEpubSection);
+          } else if (start) {
+            await r.display();
+          } else {
+            throw new Error("EPUB has no readable section");
+          }
+        }
         if (stopped) return;
         if (initialHighlight) {
           for (const contents of r.getContents()) {
@@ -176,7 +192,7 @@ export default function Read({ bookId, epub, readFormat, initialLocator, initial
       if (highlightCfi && r) r.annotations.remove(highlightCfi, "highlight");
       if (book) book.destroy();
     };
-  }, [bookId, epub, epubTarget, initialHighlight]);
+  }, [bookId, epub, epubHref, epubAnchor, initialHighlight]);
 
   useEffect(() => {
     if (epub || readFormat !== "html") return;
