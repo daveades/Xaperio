@@ -2,7 +2,10 @@ const HIGHLIGHT_NAME = "xaperio-answer";
 const STYLE_ATTRIBUTE = "data-xaperio-answer-highlight";
 
 function normalizedValue(value) {
-  return String(value || "").normalize("NFKC").toLocaleLowerCase().replace(/\s+/gu, " ").trim();
+  return String(value || "")
+    .normalize("NFKC")
+    .toLocaleLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, "");
 }
 
 export function containsText(parts, phrase) {
@@ -35,24 +38,13 @@ export function findTextRange(root, phrase) {
   let node;
   while ((node = walker.nextNode())) {
     const data = node.data;
-    const first = data.match(/\S/u)?.[0];
-    const previous = characters.at(-1);
-    if (previous && previous !== " " && first && /[\p{L}\p{N}]/u.test(previous) && /[\p{L}\p{N}]/u.test(first)) {
-      characters.push(" ");
-      positions.push({ node, start: 0, end: 0 });
-    }
     let offset = 0;
     for (const character of data) {
       const start = offset;
       offset += character.length;
       const normalized = character.normalize("NFKC").toLocaleLowerCase();
       for (const normalizedCharacter of normalized) {
-        if (/\s/u.test(normalizedCharacter)) {
-          if (characters.length && characters.at(-1) !== " ") {
-            characters.push(" ");
-            positions.push({ node, start, end: offset });
-          }
-        } else {
+        if (/[\p{L}\p{N}]/u.test(normalizedCharacter)) {
           characters.push(normalizedCharacter);
           positions.push({ node, start, end: offset });
         }
@@ -60,10 +52,6 @@ export function findTextRange(root, phrase) {
     }
   }
 
-  while (characters.at(-1) === " ") {
-    characters.pop();
-    positions.pop();
-  }
   const matchStart = characters.join("").indexOf(needle);
   if (matchStart < 0) return null;
   const matchEnd = matchStart + needle.length - 1;
