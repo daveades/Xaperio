@@ -119,7 +119,7 @@ export default function Read({ bookId, epub, readFormat, initialLocator, initial
           width: "100%",
           height: "100%",
           spread: "none",
-          flow: initialHighlight ? "scrolled-doc" : "paginated",
+          flow: "scrolled-doc",
         });
         if (stopped) {
           r.destroy();
