@@ -13,7 +13,7 @@ export default function Library({ history, loading, failed, onResume, onBrowse }
     return (
       <div className="library-empty">
         <h2 className="list-head">Your Library</h2>
-        <p className="status">Open some books please!!!! 😂</p>
+        <p className="status">Please open some books to read. 😊</p>
         <p>
           <button type="button" className="btn" onClick={onBrowse}>
             Explore Books

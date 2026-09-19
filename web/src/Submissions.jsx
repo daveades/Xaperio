@@ -29,7 +29,7 @@ export default function Submissions({ isAdmin, onReview }) {
 
       {submissions.length === 0 ? (
         <p className="status">
-          {isAdmin ? "There are no books waiting for review." : "You have not submitted a book."}
+          {isAdmin ? "There are no books waiting for review." : "You have not submitted any books."}
         </p>
       ) : (
         <ul className="submissions__list">
