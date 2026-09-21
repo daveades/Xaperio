@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { Navigate, Route, Routes, useLocation, useMatch, useNavigate } from "react-router-dom";
+import { Link, Navigate, Route, Routes, useLocation, useMatch, useNavigate } from "react-router-dom";
 import AddBook from "./AddBook";
 import Auth from "./Auth";
 import Book from "./Book";
 import BookList from "./BookList";
 import ContinueReading from "./ContinueReading";
 import Library from "./Library";
+import Landing from "./Landing";
 import Read from "./Read";
 import ReviewSubmission from "./ReviewSubmission";
 import Search from "./Search";
@@ -142,15 +143,25 @@ export default function App() {
   if (checking) return <p className="status status--page">Loading your library…</p>;
 
   if (!user || !user.email) {
+    if (location.pathname === "/") return <Landing />;
     return (
       <div className="page">
+        <Link className="text-btn" to="/">Back to Xaperio</Link>
         <div className="auth-heading">
           <h1 className="masthead">Xaperio</h1>
           <p>Your open technical knowledge base.</p>
         </div>
-        <Auth onSignedIn={setUser} />
+        <Auth
+          key={location.pathname}
+          initialMode={location.pathname === "/register" ? "register" : "login"}
+          onSignedIn={setUser}
+        />
       </div>
     );
+  }
+
+  if (location.pathname === "/login" || location.pathname === "/register") {
+    return <Navigate to="/" replace />;
   }
 
   if (readerMatch) {
